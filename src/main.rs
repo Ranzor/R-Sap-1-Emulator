@@ -3,12 +3,14 @@ struct Sap1 {
     reg_a: u8,
     // B register
     reg_b: u8,
+    // ALU output
+    alu_out: u8,
 
     // Program counter
     pc: u8,
 
-    // Memory (16 bytes)
-    memory: [u8; 16],
+    // Memory (256 bytes)
+    memory: [u8; 256],
 
     // Flags: Carry and Zero
     cf: bool,
@@ -16,6 +18,16 @@ struct Sap1 {
 
     // Halt flag
     hlt: bool,
+    // Current execution step
+    t_step: u8,
+
+    // Hardware components for visualization
+    // Bus
+    bus: u8,
+    // Memory Address Register
+    mar: u8,
+    // Instruction Register
+    ir: u8,
 }
 
 impl Sap1 {
@@ -24,10 +36,15 @@ impl Sap1 {
             reg_a: 0,
             reg_b: 0,
             pc: 0,
-            memory: [0; 16],
+            memory: [0; 256],
             cf: false,
             zf: false,
             hlt: false,
+            alu_out: 0,
+            t_step: 1,
+            bus: 0,
+            mar: 0,
+            ir: 0,
         }
     }
 
@@ -36,134 +53,176 @@ impl Sap1 {
             self.memory[i] = byte;
         }
     }
-    fn fetch(&mut self) -> u8 {
-        let instruction = self.memory[self.pc as usize];
-        self.pc = self.pc.wrapping_add(1);
-        instruction
-    }
 
-    fn execute(&mut self, instruction: u8) {
-        let opcode = instruction >> 4;
-        let operand = instruction & 0x0F;
+    fn clock_tick(&mut self) {
+        match self.t_step {
+            1 => {
+                // T1: CO, MI
+                self.bus = self.pc;
+                self.mar = self.bus;
+                self.t_step += 1;
 
-        match opcode {
-            0x0 => {
-                // NOP
-                // Do Nothing
+                println!("T1 - PC: {}, MAR: {}", self.pc, self.mar);
             }
-            0x1 => {
-                // LDA $ (from memory address)
-                self.reg_a = self.memory[operand as usize];
-            }
-            0x2 => {
-                // LDA # (immediate value)
-                self.reg_a = operand;
-            }
-            0x3 => {
-                // LDB $ (from memory address)
-                self.reg_b = self.memory[operand as usize];
-            }
-            0x4 => {
-                // LDB # (immediate value)
-                self.reg_b = operand;
-            }
-            0x5 => {
-                // ADD $ (from memory address)
-                self.reg_b = self.memory[operand as usize];
-                let (result, carry) = self.reg_a.overflowing_add(self.reg_b);
-                self.reg_a = result;
-                self.cf = carry;
-                self.zf = result == 0;
-            }
-            0x6 => {
-                // ADD # (immediate value)
-                let (result, carry) = self.reg_a.overflowing_add(operand);
-                self.reg_a = result;
-                self.cf = carry;
-                self.zf = result == 0;
-            }
-            0x7 => {
-                // SUB $ (from memory address)
-                self.reg_b = self.memory[operand as usize];
-                let (result, borrow) = self.reg_a.overflowing_sub(self.reg_b);
-                self.reg_a = result;
-                self.cf = borrow;
-                self.zf = result == 0;
-            }
-            0x8 => {
-                // SUB # (immediate value)
-                let (result, borrow) = self.reg_a.overflowing_sub(operand);
-                self.reg_a = result;
-                self.cf = borrow;
-                self.zf = result == 0;
-            }
-            0x9 => {
-                // STA (store A to memory address)
-                self.memory[operand as usize] = self.reg_a;
-            }
-            0xA => {
-                // JMP (jump to address)
-                self.pc = operand;
-            }
-            0xB => {
-                // CMP $ (compare with memory address)
-                self.reg_b = self.memory[operand as usize];
-                let result = self.reg_a.wrapping_sub(self.reg_b);
-                self.zf = result == 0;
-            }
-            0xC => {
-                // CMP # (compare with immediate value)
-                let result = self.reg_a.wrapping_sub(operand);
-                self.zf = result == 0;
-            }
-            0xD => {
-                // BNE (branch if not equal)
-                if !self.zf {
-                    self.pc = operand;
-                }
-            }
-            0xE => {
-                // JPZ (jump if zero)
-                if self.zf {
-                    self.pc = operand;
-                }
-            }
-            0xF => {
-                // Special instructions (use operand to differentiate)
-                match operand {
-                    0x0 => {
-                        // JPC (jump if carry)
-                        if self.cf {
-                            // Jump to address in next operand
-                            let address = self.fetch();
-                            self.pc = address;
-                        }
-                    }
-                    0x1 => {
-                        // INC A
-                        self.reg_a = self.reg_a.wrapping_add(1);
-                    }
-                    0x2 => {
-                        // DEC A
-                        self.reg_a = self.reg_a.wrapping_sub(1);
-                    }
-                    0x3 => {
-                        // OUT
-                        println!("Output: {}", self.reg_a);
-                    }
-                    0xF => {
-                        // HLT
-                        self.hlt = true;
-                    }
-                    _ => {
-                        // Unknown special instruction
-                        println!("Unknown special instruction: {:04b}", operand);
-                    }
-                }
+            2 => {
+                // T2: RO, II, CE
+                self.bus = self.memory[self.mar as usize];
+                self.ir = self.bus;
+                self.pc = self.pc.wrapping_add(1);
+                self.t_step += 1;
+
+                println!("T2 - IR: {:06b}, PC: {}", self.ir, self.pc);
             }
             _ => {
-                // Unknown instruction
-                println!("Unknown instruction: {:08b}", instruction);
+                match self.ir >> 4 {
+                    0x0 => {
+                        // NOP
+                        println!("T3 - NOP Executed");
+                        self.t_step = 1;
+                    }
+                    0x1 => {
+                        // LDA $ (load from memory address)
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - LDA $");
+                            }
+                            4 => {
+                                // T4: RO, MI
+                                self.bus = self.memory[self.mar as usize];
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - LDA $ Address Loaded");
+                            }
+                            5 => {
+                                // T5: RO, AI, CE
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_a = self.bus;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T5 - LDA $ Executed");
+                            }
+                            6 => {
+                                // T6 PR
+                                self.t_step = 1;
+                                println!("T6 - LDA $ Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x2 => {
+                        // LDA # (immediate value)
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - LDA");
+                            }
+                            4 => {
+                                // T4: RO, AI, CE
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_a = self.bus;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T4 = LDA Executed");
+                            }
+                            5 => {
+                                // T5 PR
+                                self.t_step = 1;
+                                println!("T5 - LDA Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x3 => {
+                        // LDB $ (load from memory address)
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - LDB $");
+                            }
+                            4 => {
+                                // T4: RO, MI
+                                self.bus = self.memory[self.mar as usize];
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - LDB $ Address Loaded");
+                            }
+                            5 => {
+                                // T5: RO, BI, CE
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T5 - LDB $ Executed");
+                            }
+                            6 => {
+                                // T6 PR
+                                self.t_step = 1;
+                                println!("T6 - LDB $ Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x4 => {
+                        // LDB # (immediate value)
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - LDB");
+                            }
+                            4 => {
+                                // T4: RO, BI, CE
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T4 - LDB Executed");
+                            }
+                            5 => {
+                                // T5 PR
+                                self.t_step = 1;
+                                println!("T5 - LDB Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0xF => {
+                        match self.ir & 0x0F {
+                            0xF => {
+                                // HLT
+                                if self.t_step == 3 {
+                                    // T3: HLT
+                                    println!("T3 - HLT Executed");
+                                    self.t_step += 1;
+                                    self.hlt = true;
+                                } else if self.t_step == 4 {
+                                    // T4 PR
+                                    println!("T4 - HLT Completed");
+                                    self.t_step = 1;
+                                }
+                            }
+                            _ => {
+                                println!("Unknown opcode: {:04b}", self.ir >> 4);
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Unknown opcode: {:04b}", self.ir >> 4);
+                        self.t_step = 1;
+                    }
+                }
             }
         }
     }
@@ -172,17 +231,24 @@ impl Sap1 {
 fn main() {
     let mut sap1 = Sap1::new();
 
-    let program: [u8; 16] = [
-        0b00100010, // LDA 2
-        0b01000011, // ADD 3
-        0b11110011, // OUT
-        0b11111111, // HLT
-        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
-        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
-    ];
+    let mut program = [0u8; 256];
+
+    program[0] = 0b00100000; // LDA #
+    program[1] = 0b00101010; // 42
+    program[2] = 0b00010000; // LDA $
+    program[3] = 0b00001000; // Address 8
+    program[4] = 0b00110000; // LDB $
+    program[5] = 0b00001000; // Address 8
+    program[6] = 0b11111111; // HLT
+    program[8] = 0b00011000; // Data at address 8: 24
+
     sap1.load_program(&program);
     while !sap1.hlt {
-        let instruction = sap1.fetch();
-        sap1.execute(instruction);
+        if sap1.reg_a == sap1.reg_b {
+            sap1.zf = true;
+        } else {
+            sap1.zf = false;
+        }
+        sap1.clock_tick();
     }
 }
