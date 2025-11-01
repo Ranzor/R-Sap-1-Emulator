@@ -198,6 +198,156 @@ impl Sap1 {
                             _ => {}
                         }
                     }
+                    0x5 => {
+                        // ADD $
+                        match self.t_step {
+                            3 => {
+                                // T3: CP, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - ADD $");
+                            }
+                            4 => {
+                                // T4: RO, MI
+                                self.bus = self.memory[self.mar as usize];
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - ADD $ Address Loaded");
+                            }
+                            5 => {
+                                // T5: RO, BI
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.t_step += 1;
+                                println!("T5 - ADD $ B Loaded");
+                            }
+                            6 => {
+                                // T6: EO, AI, CE
+                                let (result, carry) = self.reg_a.overflowing_add(self.reg_b);
+                                self.reg_a = result;
+                                self.cf = carry;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T6 - ADD $ Executed");
+                            }
+                            7 => {
+                                // T7 PR
+                                self.t_step = 1;
+                                println!("T7 - ADD $ Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x6 => {
+                        // ADD #
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - ADD #");
+                            }
+                            4 => {
+                                // T4: RO, BI
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - ADD # B Loaded");
+                            }
+                            5 => {
+                                // T5: EO, AI, CE
+                                let (result, carry) = self.reg_a.overflowing_add(self.reg_b);
+                                self.reg_a = result;
+                                self.cf = carry;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T5 - ADD # Executed");
+                            }
+                            6 => {
+                                // T6 PR
+                                self.t_step = 1;
+                                println!("T6 - ADD # Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x7 => {
+                        // SUB $
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - SUB $");
+                            }
+                            4 => {
+                                // T4: RO, MI
+                                self.bus = self.memory[self.mar as usize];
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - SUB $ Address Loaded");
+                            }
+                            5 => {
+                                // T5: RO, BI, SU
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.t_step += 1;
+                                println!("T5 - SUB $ B Loaded");
+                            }
+                            6 => {
+                                // T6: EO, AI, SU, CE
+                                let (result, borrow) = self.reg_a.overflowing_sub(self.reg_b);
+                                self.reg_a = result;
+                                self.cf = borrow;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T6 - SUB $ Executed");
+                            }
+                            7 => {
+                                // T7 PR
+                                self.t_step = 1;
+                                println!("T7 - SUB $ Completed");
+                            }
+                            _ => {}
+                        }
+                    }
+                    0x8 => {
+                        // SUB #
+                        match self.t_step {
+                            3 => {
+                                // T3: CO, MI
+                                self.bus = self.pc;
+                                self.mar = self.bus;
+                                self.t_step += 1;
+                                println!("T3 - SUB #");
+                            }
+                            4 => {
+                                // T4: RO, BI, SI
+                                self.bus = self.memory[self.mar as usize];
+                                self.reg_b = self.bus;
+                                self.t_step += 1;
+                                println!("T4 - SUB # B Loaded");
+                            }
+                            5 => {
+                                // T5: EO, AI, SU, CE
+                                let (result, borrow) = self.reg_a.overflowing_sub(self.reg_b);
+                                self.reg_a = result;
+                                self.cf = borrow;
+                                self.pc = self.pc.wrapping_add(1);
+                                self.t_step += 1;
+                                println!("T5 - SUB # Executed");
+                            }
+                            6 => {
+                                // T6: PR
+                                self.t_step = 1;
+                                println!("T6 - SUB # Completed");
+                            }
+                            _ => {}
+                        }
+                    }
                     0xF => {
                         match self.ir & 0x0F {
                             0xF => {
@@ -206,11 +356,12 @@ impl Sap1 {
                                     // T3: HLT
                                     println!("T3 - HLT Executed");
                                     self.t_step += 1;
-                                    self.hlt = true;
                                 } else if self.t_step == 4 {
                                     // T4 PR
                                     println!("T4 - HLT Completed");
                                     self.t_step = 1;
+                                    println!("A register: {}", self.reg_a);
+                                    self.hlt = true;
                                 }
                             }
                             _ => {
