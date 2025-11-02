@@ -1,0 +1,32 @@
+[
+  {
+    "task": "Start GUI",
+    "completed": false,
+    "comment": "Start implementing GUI and get some base functionality wokring.. I.E boxes and Lights that can be On (bright) or Off (dark)"
+  },
+  {
+    "task": "Finish Design",
+    "completed": false,
+    "comment": "Get the full layout. with all the modules blocked in and all the LED's in the right position and right color"
+  },
+  {
+    "task": "Connect Functionality",
+    "completed": false,
+    "comment": "Connect LED banks to the apropriate variables. Keep it simple to start, might need some refactor to get it all working correctly."
+  },
+  {
+    "task": "Test Test Test",
+    "completed": false,
+    "comment": null
+  },
+  {
+    "task": "Start Assembler",
+    "completed": false,
+    "comment": "Start working on a Assempler for a \"assembly language\" for the emulator.\n\n\nPERFECT project for branching from making Emulators to making programming languages. Cool way to explore making that with a super simple language designed around hardware i have designed myself."
+  },
+  {
+    "task": "Refactor MicroCodes",
+    "completed": false,
+    "comment": "Currently i dont actually use micro codes. I hardcode the functionality of the microcodes in each clock step of an instruction.\n\nBoth for a more accurate simulation AND much cleaner code.. Refactor so that you actualy use microcodes. Make each microcode (I.e AO = Output A Register to Bus) work like it should and then just call the required microcodes at the correct steps.\n\nThis is more accurate to hardware."
+  }
+]
