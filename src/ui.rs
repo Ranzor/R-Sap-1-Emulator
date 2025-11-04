@@ -122,7 +122,85 @@ impl eframe::App for Sap1UI {
                         });
                     });
 
-                // Add more left side-side components here.
+                ui.separator();
+
+                egui::Frame::NONE
+                    .fill(egui::Color32::from_gray(40))
+                    .stroke(egui::Stroke::new(2.0, egui::Color32::from_gray(100)))
+                    .inner_margin(8.0)
+                    .outer_margin(4.0)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            // Instruction Register
+                            ui.set_min_width(ui.available_width());
+                            ui.horizontal(|ui| {
+                                ui.label("Micro Step:");
+                                ui.label("TODO: Not Emulated yet");
+                            });
+                        });
+                        ui.separator();
+                        ui.horizontal(|ui| {
+                            ui.label("ROM Address:");
+                            ui.label("TODO: Not Emulated yet");
+                        });
+                    });
+
+                egui::Frame::NONE
+                    .fill(egui::Color32::from_gray(40))
+                    .stroke(egui::Stroke::new(2.0, egui::Color32::from_gray(100)))
+                    .inner_margin(8.0)
+                    .outer_margin(4.0)
+                    .show(ui, |ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(350.0)
+                            .show(ui, |ui| {
+                                ui.set_min_width(ui.available_width());
+                                let mut addr = 0;
+                                let mut skip_next = false;
+
+                                while addr < self.emulator.memory.len() {
+                                    let is_current = addr == self.emulator.mar as usize;
+                                    let arrow = if is_current { "->" } else { "  " };
+                                    let color = if is_current {
+                                        egui::Color32::from_rgb(220, 180, 50)
+                                    } else {
+                                        egui::Color32::GRAY
+                                    };
+                                    if !skip_next {
+                                        let (mnemonic, is_two_byte) =
+                                            dissasemble_byte(&self.emulator.memory, addr);
+                                        ui.horizontal(|ui| {
+                                            ui.colored_label(color, arrow);
+                                            ui.colored_label(color, format!("{:03}: ", addr));
+                                            ui.colored_label(
+                                                color,
+                                                format!("{:08b}", self.emulator.memory[addr]),
+                                            );
+                                            ui.colored_label(color, mnemonic);
+                                        });
+                                        if is_two_byte {
+                                            skip_next = true;
+                                        }
+                                    } else {
+                                        ui.horizontal(|ui| {
+                                            ui.colored_label(color, arrow);
+                                            ui.colored_label(color, format!("{:03}: ", addr));
+                                            ui.colored_label(
+                                                color,
+                                                format!("{:08b}", self.emulator.memory[addr]),
+                                            );
+                                            ui.colored_label(
+                                                color,
+                                                format!("{}", self.emulator.memory[addr]),
+                                            );
+
+                                            skip_next = false;
+                                        });
+                                    }
+                                    addr += 1;
+                                }
+                            });
+                    });
             });
 
         egui::SidePanel::right("right_panel")
@@ -234,6 +312,23 @@ impl eframe::App for Sap1UI {
                             });
                         });
                     });
+                ui.separator();
+
+                egui::Frame::NONE
+                    .fill(egui::Color32::from_gray(40))
+                    .stroke(egui::Stroke::new(2.0, egui::Color32::from_gray(100)))
+                    .inner_margin(8.0)
+                    .outer_margin(4.0)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            // Control Word
+                            ui.set_min_width(ui.available_width());
+                            ui.horizontal(|ui| {
+                                ui.label("Control Word:");
+                                ui.label("TODO: Not Emulated Yet");
+                            });
+                        });
+                    });
             });
         // Central/Right Area - Registers and ALU
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -283,4 +378,37 @@ fn draw_byte_leds(ui: &mut egui::Ui, value: u8, color: LedColor) {
             draw_led_bit(ui, bit, color.to_color32());
         }
     });
+}
+
+fn dissasemble_byte(memory: &[u8], address: usize) -> (String, bool) {
+    let byte = memory[address];
+    let opcode = byte >> 4;
+
+    match opcode {
+        0x0 => ("NOP".to_string(), false),
+        0x1 => ("LDA $".to_string(), true),
+        0x2 => ("LDA #".to_string(), true),
+        0x3 => ("LDB $".to_string(), true),
+        0x4 => ("LDB #".to_string(), true),
+        0x5 => ("ADD $".to_string(), true),
+        0x6 => ("ADD #".to_string(), true),
+        0x7 => ("SUB $".to_string(), true),
+        0x8 => ("SUB #".to_string(), true),
+        0x9 => ("STA".to_string(), true),
+        0xA => ("JMP".to_string(), true),
+        0xB => ("CMP $".to_string(), true),
+        0xC => ("CMP #".to_string(), true),
+        0xD => ("BNE".to_string(), true),
+        0xE => ("JPZ".to_string(), true),
+        0xF => match byte {
+            0xF0 => ("JPC".to_string(), true),
+            0xF1 => ("INC".to_string(), true),
+            0xF2 => ("DEC".to_string(), true),
+            0xF3 => ("OUT".to_string(), false),
+            0xFF => ("HLT".to_string(), false),
+            _ => ("???".to_string(), false),
+        },
+
+        _ => ("???".to_string(), false),
+    }
 }
