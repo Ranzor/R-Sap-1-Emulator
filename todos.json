@@ -5,18 +5,18 @@
     "comment": "Start implementing GUI and get some base functionality wokring.. I.E boxes and Lights that can be On (bright) or Off (dark)"
   },
   {
+    "task": "Create memory display",
+    "completed": true,
+    "comment": "Create a display that can show the binary values of memory and dissassemlbe/translate them to assembly instructions."
+  },
+  {
     "task": "Finish Design",
-    "completed": false,
+    "completed": true,
     "comment": "Get the full layout. with all the modules blocked in and all the LED's in the right position and right color\n\nInsert placeholders for missing functionality."
   },
   {
-    "task": "Start Assembler",
-    "completed": false,
-    "comment": "Start working on a Assempler for a \"assembly language\" for the emulator.\n\n\nPERFECT project for branching from making Emulators to making programming languages. Cool way to explore making that with a super simple language designed around hardware i have designed myself."
-  },
-  {
     "task": "Refactor MicroCodes",
-    "completed": false,
+    "completed": true,
     "comment": "Currently i dont actually use micro codes. I hardcode the functionality of the microcodes in each clock step of an instruction.\n\nBoth for a more accurate simulation AND much cleaner code.. Refactor so that you actualy use microcodes. Make each microcode (I.e AO = Output A Register to Bus) work like it should and then just call the required microcodes at the correct steps.\n\nThis is more accurate to hardware."
   },
   {
@@ -25,8 +25,33 @@
     "comment": "Hook up all registers and anything else that displays vaules to the corresponding displays\n"
   },
   {
-    "task": "Create memory display",
+    "task": "Start Assembler",
     "completed": false,
-    "comment": "Create a display that can show the binary values of memory and dissassemlbe/translate them to assembly instructions."
+    "comment": "Start working on a Assempler for a \"assembly language\" for the emulator.\n\n\nPERFECT project for branching from making Emulators to making programming languages. Cool way to explore making that with a super simple language designed around hardware i have designed myself."
+  },
+  {
+    "task": "Load Program from file",
+    "completed": false,
+    "comment": "If we can write programs in assembly and assemble them to binary.. we should be able to load a program from file."
+  },
+  {
+    "task": "Make pretty",
+    "completed": false,
+    "comment": "Improve visuals\nImpriove the layout visuals, and add connecting lines between the registers that are physcially connected, and draw the \"bus\" lines."
+  },
+  {
+    "task": "Enter program manually",
+    "completed": false,
+    "comment": "Alternative to assembly for more true to hardware emulation. You should have the ability to enter a program into memory line by line. \n\nWhen you do so the \"opcode\" should update when you \"enter\" the data. We already track what commands are 1 or 2 bytes so that should still work nicely, we just have to run it every time a change occurs."
+  },
+  {
+    "task": "Enter program with hex manually",
+    "completed": false,
+    "comment": "if you can enter a program binary by hand.. why not be able to enter it with hex by hand?"
+  },
+  {
+    "task": "Enter program with opcodes",
+    "completed": false,
+    "comment": "We are already translating binary to opcodes in the viewer.. So if we can enter program with binary manually, and hex manually. why not opcodes manually?\n\nWait a minute. That's almost already assembly. in the memory viewer..\n\nOnly missing nice features like labels and stuff for loops..\n\nDaym."
   }
 ]

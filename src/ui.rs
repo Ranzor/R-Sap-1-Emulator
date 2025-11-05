@@ -10,10 +10,32 @@ impl Sap1UI {
         let mut emulator = Sap1::new();
 
         let program = [
-            0b00100000, // LDA #
-            0b00001010, // 10
-            0b11110011, // OUT
-            0b11111111, // HLT
+            // Test 1: Basic arithmetic and JNZ
+            0x20, 5, // 00-01: LDA # 5        (Load 5 into A)
+            0x80, 5, // 02-03: SUB # 5        (Subtract 5, A = 0, ZF = 1)
+            0xD0, 10, // 04-05: JNZ 10         (Should NOT jump, ZF = 1)
+            0x20, 99,   // 06-07: LDA # 99       (This should execute)
+            0xF3, // 08:    OUT            (Output 99)
+            0xA0, 14, // 09-10: JMP 14         (Jump to next test)
+            // If JNZ incorrectly jumped here:
+            0x20, 255,  // 11-12: LDA # 255      (This should NOT execute)
+            0xF3, // 13:    OUT            (Should not output 255)
+            // Test 2: JPZ (jump if zero)
+            0x20, 10, // 14-15: LDA # 10       (Load 10, ZF = 0)
+            0xE0, 24, // 16-17: JPZ 24         (Should NOT jump, ZF = 0)
+            0x20, 0, // 18-19: LDA # 0        (Load 0, ZF = 1)
+            0xE0, 26, // 20-21: JPZ 26         (Should jump, ZF = 1)
+            0x20, 111,  // 22-23: LDA # 111      (Should NOT execute)
+            0xF3, // 24:    OUT            (Should NOT output 111)
+            0xFF, // 25:    HLT            (Should NOT halt here)
+            // Test 3: Successful jump lands here
+            0x20, 42,   // 26-27: LDA # 42       (This should execute)
+            0xF3, // 28:    OUT            (Output 42)
+            // Test 4: Simple addition
+            0x20, 10, // 29-30: LDA # 10
+            0x60, 5,    // 31-32: ADD # 5        (A = 15)
+            0xF3, // 33:    OUT            (Output 15)
+            0xFF, // 34:    HLT            (End)
         ];
 
         emulator.load_program(&program);
@@ -58,8 +80,13 @@ impl eframe::App for Sap1UI {
                         ui.set_min_width(ui.available_width());
                         ui.horizontal(|ui| {
                             ui.label("Clock:");
-                            if ui.button("Step").clicked() {
-                                self.emulator.clock_tick();
+                            if ui.button("Step").clicked() && !self.emulator.running {
+                                if !self.emulator.hlt {
+                                    self.emulator.clock_tick();
+                                }
+                            }
+                            if ui.button("Run").clicked() {
+                                self.emulator.running = !self.emulator.running;
                             }
                         });
                     });
@@ -76,7 +103,7 @@ impl eframe::App for Sap1UI {
                         ui.set_min_width(ui.available_width());
                         ui.horizontal(|ui| {
                             ui.label("Memory Address:");
-                            draw_byte_leds(ui, self.emulator.mar, LedColor::Address);
+                            draw_byte_leds(ui, self.emulator.mar, LedColor::Address, 8);
                             ui.label(format!("({})", self.emulator.mar));
                         });
                     });
@@ -96,6 +123,7 @@ impl eframe::App for Sap1UI {
                                 ui,
                                 self.emulator.memory[self.emulator.mar as usize],
                                 LedColor::Data,
+                                8,
                             );
                             ui.label(format!(
                                 "({})",
@@ -116,7 +144,7 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("Instruction Register:");
-                                draw_byte_leds(ui, self.emulator.ir, LedColor::Control);
+                                draw_byte_leds(ui, self.emulator.ir, LedColor::Control, 8);
                                 ui.label(format!("({})", self.emulator.ir));
                             });
                         });
@@ -135,13 +163,16 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("Micro Step:");
-                                ui.label("TODO: Not Emulated yet");
+                                draw_byte_leds(ui, self.emulator.t_step, LedColor::Address, 3);
+                                let decoded = decode_t_step(self.emulator.t_step);
+                                draw_byte_leds(ui, decoded, LedColor::Program, 7);
                             });
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("ROM Address:");
-                            ui.label("TODO: Not Emulated yet");
+                            draw_byte_leds(ui, self.emulator.t_step, LedColor::Address, 3);
+                            draw_byte_leds(ui, self.emulator.ir, LedColor::Address, 8);
                         });
                     });
 
@@ -220,7 +251,7 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("Program Counter:");
-                                draw_byte_leds(ui, self.emulator.pc, LedColor::Program);
+                                draw_byte_leds(ui, self.emulator.pc, LedColor::Program, 8);
                                 ui.label(format!("({})", self.emulator.pc));
                             });
                         });
@@ -239,7 +270,7 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("Accumulator:");
-                                draw_byte_leds(ui, self.emulator.reg_a, LedColor::Data);
+                                draw_byte_leds(ui, self.emulator.reg_a, LedColor::Data, 8);
                                 ui.label(format!("({})", self.emulator.reg_a));
                             });
                         });
@@ -257,7 +288,7 @@ impl eframe::App for Sap1UI {
                             ui.horizontal(|ui| {
                                 ui.label("ALU:");
                                 // ALU Output
-                                draw_byte_leds(ui, self.emulator.alu_out, LedColor::Data);
+                                draw_byte_leds(ui, self.emulator.alu_out, LedColor::Data, 8);
                                 ui.label(format!("({})", self.emulator.alu_out));
                                 ui.label("Flags:");
                                 ui.label("Z:");
@@ -289,7 +320,7 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("B Register:");
-                                draw_byte_leds(ui, self.emulator.reg_b, LedColor::Data);
+                                draw_byte_leds(ui, self.emulator.reg_b, LedColor::Data, 8);
                                 ui.label(format!("({})", self.emulator.reg_b));
                             });
                         });
@@ -308,7 +339,7 @@ impl eframe::App for Sap1UI {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 ui.label("Output:");
-                                ui.label("TODO");
+                                ui.label(format!("{:04}", self.emulator.output));
                             });
                         });
                     });
@@ -320,12 +351,23 @@ impl eframe::App for Sap1UI {
                     .inner_margin(8.0)
                     .outer_margin(4.0)
                     .show(ui, |ui| {
-                        ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
                             // Control Word
                             ui.set_min_width(ui.available_width());
+
+                            ui.label("Control Word:");
                             ui.horizontal(|ui| {
-                                ui.label("Control Word:");
-                                ui.label("TODO: Not Emulated Yet");
+                                let signals = self.emulator.control_word.to_array();
+                                let names = crate::emulator::ControlWord::signal_names();
+
+                                for (_i, (&bit, &name)) in
+                                    signals.iter().zip(names.iter()).enumerate()
+                                {
+                                    ui.vertical(|ui| {
+                                        draw_led_bit(ui, bit, LedColor::Control.to_color32());
+                                        ui.label(name);
+                                    });
+                                }
                             });
                         });
                     });
@@ -336,7 +378,7 @@ impl eframe::App for Sap1UI {
 
             ui.heading("Bus");
             // Bus display area
-            draw_byte_leds(ui, self.emulator.bus, LedColor::Address);
+            draw_byte_leds(ui, self.emulator.bus, LedColor::Address, 8);
         });
     }
 }
@@ -358,7 +400,7 @@ fn draw_led_bit(ui: &mut egui::Ui, bit: bool, color: egui::Color32) -> egui::Res
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::hover());
 
     if ui.is_rect_visible(rect) {
-        let visuals = ui.style().noninteractive();
+        let _visuals = ui.style().noninteractive();
 
         let fill_color = if bit {
             color
@@ -370,10 +412,10 @@ fn draw_led_bit(ui: &mut egui::Ui, bit: bool, color: egui::Color32) -> egui::Res
     response
 }
 
-fn draw_byte_leds(ui: &mut egui::Ui, value: u8, color: LedColor) {
+fn draw_byte_leds(ui: &mut egui::Ui, value: u8, color: LedColor, num_bits: usize) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 4.0;
-        for i in (0..8).rev() {
+        for i in (0..num_bits).rev() {
             let bit = (value >> i) & 1 == 1;
             draw_led_bit(ui, bit, color.to_color32());
         }
@@ -410,5 +452,14 @@ fn dissasemble_byte(memory: &[u8], address: usize) -> (String, bool) {
         },
 
         _ => ("???".to_string(), false),
+    }
+}
+fn decode_t_step(t_step: u8) -> u8 {
+    if t_step == 0 {
+        0b00000000
+    } else if t_step <= 7 {
+        1 << (7 - t_step)
+    } else {
+        0
     }
 }
