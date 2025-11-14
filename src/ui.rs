@@ -80,13 +80,13 @@ impl eframe::App for Sap1UI {
                         ui.set_min_width(ui.available_width());
                         ui.horizontal(|ui| {
                             ui.label("Clock:");
-                            if ui.button("Step").clicked() && !self.emulator.running {
+                            if ui.button("Step").clicked() {
                                 if !self.emulator.hlt {
                                     self.emulator.clock_tick();
                                 }
                             }
                             if ui.button("Run").clicked() {
-                                self.emulator.running = !self.emulator.running;
+                                // TODO: Run until HLT
                             }
                         });
                     });
